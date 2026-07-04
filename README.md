@@ -116,11 +116,16 @@ export UPSTASH_REDIS_REST_TOKEN="..."
 rm gmail_token.json   # ya está en GitHub Secrets, bórralo local
 ```
 
-El workflow `.github/workflows/poll.yml` se activa solo (cron). Pruébalo sin esperar:
+El `cron` de `.github/workflows/poll.yml` viene comentado por defecto (para
+que un fork sin secretos no acumule ejecuciones fallidas). Pruébalo primero
+a mano:
 
 ```bash
 gh workflow run poll.yml && gh run watch
 ```
+
+Cuando confirmes que funciona, descomenta el bloque `schedule:` en
+`poll.yml` y haz push para activar el polling automático.
 
 ## Personalización
 

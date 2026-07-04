@@ -1,8 +1,11 @@
 name: Poll Gmail for important messages
 
 on:
-  schedule:
-    - cron: "*/30 * * * *"
+  # Descomenta el cron una vez configurados tus secretos (ver README) para
+  # activar el polling automático. Se deja desactivado en la plantilla para
+  # que un fork/clon sin secretos no genere ejecuciones fallidas.
+  # schedule:
+  #   - cron: "*/30 * * * *"
   workflow_dispatch:
 
 jobs:
