@@ -1,0 +1,678 @@
+<title>gmail-important-alerts — que tu bandeja te avise</title>
+<style>
+  :root {
+    --ink: #12131a;
+    --surface: #1a1c27;
+    --surface-2: #22243447;
+    --surface-2-solid: #232537;
+    --border: #34364a;
+    --text: #ededf3;
+    --text-muted: #9395aa;
+    --text-faint: #63647a;
+    --accent: #e8a23c;
+    --accent-dim: #6b5326;
+    --accent-glow: rgba(232, 162, 60, 0.18);
+
+    --urgency-low: #5c6b8c;
+    --urgency-medium: #b8863e;
+    --urgency-high: #c96a3b;
+    --urgency-critical: #c0403f;
+
+    --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, "Courier New", monospace;
+
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--text);
+    font-family: var(--font-body);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+      radial-gradient(ellipse 900px 500px at 15% -10%, var(--accent-glow), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 100% 20%, rgba(92, 107, 140, 0.12), transparent 55%);
+  }
+
+  main { position: relative; z-index: 1; }
+
+  a { color: var(--accent); }
+  a:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  .wrap {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 0 28px;
+  }
+
+  code, .mono { font-family: var(--font-mono); }
+  .tabular { font-variant-numeric: tabular-nums; }
+
+  /* ---------- Eyebrow / status line ---------- */
+  .status-bar {
+    padding: 18px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .status-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+    flex-shrink: 0;
+    animation: pulse 2.6s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .status-dot { animation: none; }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    padding: 72px 0 88px;
+  }
+  .hero .wrap {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 56px;
+    align-items: center;
+  }
+  @media (max-width: 860px) {
+    .hero .wrap { grid-template-columns: 1fr; }
+    .hero { padding: 48px 0 56px; }
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(2.4rem, 5vw, 3.4rem);
+    line-height: 1.08;
+    margin: 0 0 22px;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  h1 em {
+    font-style: italic;
+    color: var(--accent);
+  }
+
+  .lede {
+    font-size: 1.08rem;
+    color: var(--text-muted);
+    max-width: 46ch;
+    margin: 0 0 30px;
+  }
+
+  .cta-row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border-radius: 7px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid transparent;
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #1a1206;
+  }
+  .btn-primary:hover { transform: translateY(-1px); }
+  .btn-ghost {
+    color: var(--text);
+    border-color: var(--border);
+  }
+  .btn-ghost:hover { border-color: var(--accent); }
+
+  /* ---------- Sample alert card (the thesis visual) ---------- */
+  .phone-frame {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px;
+    box-shadow: 0 30px 60px -30px rgba(0,0,0,0.6);
+    animation: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  @media (prefers-reduced-motion: reduce) { .phone-frame { animation: none; } }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .phone-frame-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+  }
+  .alert-bubble {
+    background: var(--surface-2-solid);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    font-size: 0.92rem;
+  }
+  .alert-score-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .score-pill {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--urgency-high);
+    background: color-mix(in srgb, var(--urgency-high) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--urgency-high) 45%, transparent);
+    border-radius: 6px;
+    padding: 3px 9px;
+  }
+  .alert-title { font-weight: 700; }
+  .alert-fields { display: grid; gap: 6px; color: var(--text-muted); }
+  .alert-fields b { color: var(--text); font-weight: 600; }
+  .alert-divider { height: 1px; background: var(--border); margin: 12px 0; }
+  .alert-link { font-size: 0.85rem; }
+
+  /* ---------- Sections ---------- */
+  section { padding: 64px 0; border-top: 1px solid var(--border); }
+  .section-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 10px;
+  }
+  h2 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    font-size: clamp(1.6rem, 3vw, 2.1rem);
+    margin: 0 0 20px;
+    text-wrap: balance;
+  }
+  .prose { color: var(--text-muted); max-width: 66ch; }
+  .prose p { margin: 0 0 16px; }
+  .prose strong { color: var(--text); }
+
+  /* ---------- Pipeline ---------- */
+  .pipeline {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 2px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 32px;
+  }
+  @media (max-width: 900px) {
+    .pipeline { grid-template-columns: 1fr; }
+  }
+  .pipe-node {
+    background: var(--surface);
+    padding: 22px 20px;
+    position: relative;
+  }
+  .pipe-index {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-faint);
+    margin-bottom: 10px;
+  }
+  .pipe-title {
+    font-weight: 700;
+    margin-bottom: 8px;
+    font-size: 0.98rem;
+  }
+  .pipe-detail {
+    font-size: 0.84rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+  .pipe-node::after {
+    content: "→";
+    position: absolute;
+    right: -14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-faint);
+    font-size: 1rem;
+    z-index: 2;
+  }
+  .pipe-node:last-child::after { content: ""; }
+  @media (max-width: 900px) {
+    .pipe-node::after { content: "↓"; right: auto; left: 20px; top: auto; bottom: -13px; }
+  }
+
+  /* ---------- Scoring panel ---------- */
+  .scoring-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    margin-top: 28px;
+    align-items: start;
+  }
+  @media (max-width: 780px) { .scoring-grid { grid-template-columns: 1fr; } }
+
+  .code-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    line-height: 1.7;
+    overflow-x: auto;
+  }
+  .code-panel .k { color: #8fa9c9; }
+  .code-panel .s { color: #b7cf9f; }
+  .code-panel .n { color: var(--accent); }
+  .code-panel .c { color: var(--text-faint); }
+
+  .urgency-scale { display: grid; gap: 10px; }
+  .urgency-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+  }
+  .urgency-swatch {
+    width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0;
+  }
+  .urgency-name { font-weight: 600; font-size: 0.88rem; min-width: 90px; font-family: var(--font-mono); }
+  .urgency-desc { color: var(--text-muted); font-size: 0.84rem; }
+
+  .threshold-note {
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-left: 2px solid var(--accent);
+    background: var(--accent-glow);
+    font-size: 0.86rem;
+    color: var(--text-muted);
+    border-radius: 0 6px 6px 0;
+  }
+  .threshold-note code { color: var(--accent); }
+
+  /* ---------- Stats ---------- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 32px;
+  }
+  @media (max-width: 780px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat {
+    background: var(--surface);
+    padding: 24px 20px;
+    text-align: left;
+  }
+  .stat-value {
+    font-family: var(--font-mono);
+    font-size: 1.7rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .stat-label {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  /* ---------- Stack table ---------- */
+  .stack-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 28px;
+    font-size: 0.92rem;
+  }
+  .stack-table th {
+    text-align: left;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    padding: 0 14px 12px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+  }
+  .stack-table td {
+    padding: 13px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .stack-table td:first-child { color: var(--text); font-weight: 600; }
+  .table-scroll { overflow-x: auto; }
+
+  /* ---------- Quickstart ---------- */
+  .steps { counter-reset: step; margin-top: 28px; display: grid; gap: 4px; }
+  .step {
+    counter-increment: step;
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: 18px;
+    padding: 18px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .step:last-child { border-bottom: none; }
+  .step::before {
+    content: counter(step, decimal-leading-zero);
+    font-family: var(--font-mono);
+    color: var(--accent);
+    font-size: 0.9rem;
+    padding-top: 2px;
+  }
+  .step-title { font-weight: 700; margin-bottom: 4px; }
+  .step-detail { color: var(--text-muted); font-size: 0.9rem; }
+  .step-detail code {
+    background: var(--surface-2-solid);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    color: var(--text);
+  }
+
+  /* ---------- Footer ---------- */
+  footer {
+    padding: 48px 0 60px;
+    border-top: 1px solid var(--border);
+  }
+  .footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .footer-note {
+    font-size: 0.86rem;
+    color: var(--text-faint);
+  }
+  .footer-links { display: flex; gap: 20px; font-size: 0.86rem; }
+  .footer-links a { color: var(--text-muted); text-decoration: none; }
+  .footer-links a:hover { color: var(--accent); }
+</style>
+
+<main>
+  <div class="status-bar">
+    <div class="wrap status-line">
+      <span class="status-dot" aria-hidden="true"></span>
+      <span class="mono">STATUS · polling cada 30 min · $0.00/mes · sin tarjeta de crédito</span>
+    </div>
+  </div>
+
+  <section class="hero" style="border-top:none;">
+    <div class="wrap">
+      <div>
+        <h1>Que tu bandeja te avise, <em>no</em> que tengas que vigilarla.</h1>
+        <p class="lede">Un bot personal que lee tu Gmail, deja que Gemini decida qué importa de verdad, y solo te interrumpe por Telegram cuando de verdad toca. Corre en la nube gratis — sin Pub/Sub, sin Firestore, sin tarjeta.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="https://github.com/Oscar-DSB/gmail-important-alerts">Ver el código</a>
+          <a class="btn btn-ghost" href="#pipeline">Cómo funciona</a>
+        </div>
+      </div>
+
+      <div class="phone-frame">
+        <div class="phone-frame-label">Telegram · alerta real</div>
+        <div class="alert-bubble">
+          <div class="alert-score-row">
+            <span class="score-pill tabular">9/10</span>
+            <span class="alert-title">CORREO IMPORTANTE</span>
+          </div>
+          <div class="alert-fields">
+            <div><b>De:</b> rrhh@universidad.edu</div>
+            <div><b>Asunto:</b> Confirmación de entrevista de prácticas</div>
+            <div><b>Categoría:</b> Universidad</div>
+            <div><b>Urgencia:</b> Alta</div>
+          </div>
+          <div class="alert-divider"></div>
+          <div class="alert-fields">
+            <div><b>Motivo:</b> confirmación de entrevista con fecha y hora especificadas.</div>
+          </div>
+          <div class="alert-divider"></div>
+          <div class="alert-link"><a href="#">Abrir en Gmail →</a></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <p class="section-eyebrow">Por qué existe</p>
+      <h2>La arquitectura "correcta" te pide una tarjeta.<br>Esta no.</h2>
+      <div class="prose">
+        <p>El diseño obvio para esto es Gmail → <strong>Pub/Sub</strong> → Cloud Function → Firestore: notificación push, en tiempo real, muy elegante. También exige una cuenta de facturación de Google Cloud activa, aunque el uso real nunca salga del tier gratuito.</p>
+        <p>Aquí se cambia el push por <strong>polling cada 30 minutos vía GitHub Actions</strong>, y Firestore por <strong>Upstash Redis</strong>. El resultado corre indefinidamente gratis, sin que nadie tenga que introducir un método de pago en ningún sitio.</p>
+        <p>El precio: hasta 30 minutos de retraso frente a una notificación instantánea. Para un asistente personal de "que no se me pase nada", es un cambio razonable.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="pipeline">
+    <div class="wrap">
+      <p class="section-eyebrow">Arquitectura</p>
+      <h2>Cinco pasos, cero servidores</h2>
+      <p class="prose">Sin <code class="mono">watch()</code> de Gmail que renovar: la sincronización incremental por <code class="mono">historyId</code> funciona igual sin ninguna suscripción push activa.</p>
+
+      <div class="pipeline">
+        <div class="pipe-node">
+          <div class="pipe-index">01 · CRON</div>
+          <div class="pipe-title">Gmail history.list</div>
+          <div class="pipe-detail">GitHub Actions despierta cada 30 min y pide los mensajes nuevos desde el último <code class="mono">historyId</code> guardado.</div>
+        </div>
+        <div class="pipe-node">
+          <div class="pipe-index">02 · GRATIS</div>
+          <div class="pipe-title">Filtros locales</div>
+          <div class="pipe-detail">Newsletters, publicidad y promos con <code class="mono">unsubscribe</code> se descartan sin gastar ni un token de Gemini.</div>
+        </div>
+        <div class="pipe-node">
+          <div class="pipe-index">03 · IA</div>
+          <div class="pipe-title">Gemini clasifica</div>
+          <div class="pipe-detail"><code class="mono">gemini-2.5-flash-lite</code> puntúa 0-10, asigna categoría y urgencia. La respuesta se valida antes de confiar en ella.</div>
+        </div>
+        <div class="pipe-node">
+          <div class="pipe-index">04 · ESTADO</div>
+          <div class="pipe-title">Upstash guarda</div>
+          <div class="pipe-detail">El <code class="mono">historyId</code> y cada mensaje procesado (TTL 30 días) evitan duplicados y reintentos innecesarios.</div>
+        </div>
+        <div class="pipe-node">
+          <div class="pipe-index">05 · AVISO</div>
+          <div class="pipe-title">Telegram alerta</div>
+          <div class="pipe-detail">Solo si el score supera el umbral configurado. Todo lo demás queda en silencio.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <p class="section-eyebrow">Cómo decide</p>
+      <h2>Nunca se confía ciegamente en el modelo</h2>
+      <div class="scoring-grid">
+        <div>
+          <p class="prose" style="margin-bottom:16px;">Gemini debe devolver JSON exacto. Se limpia de bloques Markdown, se valida campo a campo y cada valor fuera de rango se corrige antes de usarse:</p>
+          <div class="code-panel"><span class="c">// respuesta validada de importance_classifier.py</span><br>
+{<br>
+&nbsp;&nbsp;<span class="k">"score"</span>: <span class="n">9</span>,<br>
+&nbsp;&nbsp;<span class="k">"reason"</span>: <span class="s">"Confirmación de entrevista con fecha…"</span>,<br>
+&nbsp;&nbsp;<span class="k">"category"</span>: <span class="s">"universidad"</span>,<br>
+&nbsp;&nbsp;<span class="k">"requires_action"</span>: <span class="n">true</span>,<br>
+&nbsp;&nbsp;<span class="k">"urgency"</span>: <span class="s">"high"</span><br>
+}</div>
+          <div class="threshold-note">Solo se envía alerta si <code>score >= IMPORTANCE_THRESHOLD</code> (por defecto <code>7</code>). Si Gemini falla, el mensaje <strong>no</strong> se marca como procesado: se reintenta solo en el siguiente ciclo.</div>
+        </div>
+        <div>
+          <div class="urgency-scale">
+            <div class="urgency-row">
+              <span class="urgency-swatch" style="background:var(--urgency-low)"></span>
+              <span class="urgency-name">low</span>
+              <span class="urgency-desc">informativo, sin acción necesaria</span>
+            </div>
+            <div class="urgency-row">
+              <span class="urgency-swatch" style="background:var(--urgency-medium)"></span>
+              <span class="urgency-name">medium</span>
+              <span class="urgency-desc">merece un vistazo esta semana</span>
+            </div>
+            <div class="urgency-row">
+              <span class="urgency-swatch" style="background:var(--urgency-high)"></span>
+              <span class="urgency-name">high</span>
+              <span class="urgency-desc">entrevistas, fechas límite, universidad</span>
+            </div>
+            <div class="urgency-row">
+              <span class="urgency-swatch" style="background:var(--urgency-critical)"></span>
+              <span class="urgency-name">critical</span>
+              <span class="urgency-desc">seguridad, pagos, accesos comprometidos</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <p class="section-eyebrow">En números</p>
+      <h2>Lo que realmente cuesta operarlo</h2>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-value tabular">$0</div>
+          <div class="stat-label">coste mensual</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value tabular">36</div>
+          <div class="stat-label">tests automatizados</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value tabular">30 min</div>
+          <div class="stat-label">intervalo de polling</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value tabular">0</div>
+          <div class="stat-label">tarjetas de crédito</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <p class="section-eyebrow">Stack</p>
+      <h2>Todo con capa gratuita real</h2>
+      <div class="table-scroll">
+        <table class="stack-table">
+          <thead>
+            <tr><th>Pieza</th><th>Rol</th><th>Por qué esta</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Gmail API</td><td>Origen de los correos</td><td>OAuth 2.0, scope de solo lectura</td></tr>
+            <tr><td>GitHub Actions</td><td>Cómputo programado</td><td>Cron gratis, sin servidor que mantener</td></tr>
+            <tr><td>Gemini API</td><td>Clasificación de importancia</td><td><code class="mono">gemini-2.5-flash-lite</code>, capa gratuita</td></tr>
+            <tr><td>Upstash Redis</td><td>Estado y deduplicación</td><td>REST API, free tier sin tarjeta</td></tr>
+            <tr><td>Telegram Bot API</td><td>Canal de alerta</td><td>Gratis, sin límites prácticos</td></tr>
+            <tr><td>GitHub Secrets</td><td>Gestión de credenciales</td><td>Cifrado en reposo, oculto incluso en logs</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <p class="section-eyebrow">Móntalo tú</p>
+      <h2>Seis pasos, todos gratuitos</h2>
+      <div class="steps">
+        <div class="step">
+          <div>
+            <div class="step-title">Credenciales OAuth de Gmail</div>
+            <div class="step-detail">Proyecto de Google Cloud sin facturación activada — Gmail API no la exige. Descarga <code>credentials.json</code>.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div>
+            <div class="step-title">Genera el token</div>
+            <div class="step-detail">Ejecuta <code>python scripts/setup_gmail_oauth.py</code>, autoriza en el navegador.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div>
+            <div class="step-title">Base de datos en Upstash</div>
+            <div class="step-detail">Redis gratis en <code>console.upstash.com</code>, copia REST URL y token.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div>
+            <div class="step-title">API key de Gemini</div>
+            <div class="step-detail">Clave gratuita en <code>aistudio.google.com/apikey</code>.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div>
+            <div class="step-title">Bot de Telegram</div>
+            <div class="step-detail"><code>@BotFather</code> → <code>/newbot</code>, y tu <code>chat_id</code> vía <code>getUpdates</code>.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div>
+            <div class="step-title">Sube secretos y despliega</div>
+            <div class="step-detail"><code>./scripts/setup_github_secrets.sh</code> sube los seis secretos; el cron se activa solo al hacer push.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap footer-row">
+      <div>
+        <div class="footer-note">MIT License · creado por Oscar De Simone</div>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/Oscar-DSB/gmail-important-alerts">GitHub</a>
+        <a href="https://github.com/Oscar-DSB/gmail-important-alerts#readme">README</a>
+        <a href="https://github.com/Oscar-DSB/gmail-important-alerts/blob/master/LICENSE">Licencia</a>
+      </div>
+    </div>
+  </footer>
+</main>
