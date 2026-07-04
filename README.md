@@ -6,6 +6,8 @@ Un bot personal que vigila tu Gmail, usa Gemini para puntuar la importancia de c
 
 Creado por [Oscar De Simone](https://github.com/Oscar-DSB).
 
+**[→ Ver la página del proyecto](https://oscar-dsb.github.io/gmail-important-alerts/)**
+
 ---
 
 ## Por qué existe
