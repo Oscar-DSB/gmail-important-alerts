@@ -1,0 +1,10 @@
+credentials.json
+gmail_token.json
+token.json
+token.pickle
+.env
+__pycache__/
+.pytest_cache/
+*.pyc
+.venv/
+venv/
