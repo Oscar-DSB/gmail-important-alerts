@@ -62,20 +62,96 @@ def _process_single_message(service, message_id: str) -> bool:
         logger.error("Fallo clasificando mensaje %s con Gemini", message_id, exc_info=True)
         return False
 
-    telegram_sent = False
+    telegram_message_id = None
     if classification["score"] >= config.IMPORTANCE_THRESHOLD:
-        telegram_sent = telegram_service.send_alert(email, classification)
-        if telegram_sent:
+        telegram_message_id = telegram_service.send_alert(email, classification)
+        if telegram_message_id:
             logger.info("Telegram alert sent for message %s", message_id)
         else:
             logger.error("No se pudo enviar la alerta de Telegram para %s", message_id)
 
-    state_service.mark_message_processed(email, classification, telegram_sent=telegram_sent)
+    state_service.mark_message_processed(
+        email,
+        classification,
+        telegram_sent=telegram_message_id is not None,
+        telegram_message_id=telegram_message_id,
+    )
     return True
+
+
+_REACTION_ACTIONS = {
+    "👍": ("mark_alert_answered", "respondido"),
+    "👎": ("mark_alert_dismissed", "no importante"),
+}
+
+
+def process_telegram_reactions() -> None:
+    """Revisa reacciones nativas puestas por el usuario (👍/👎) sobre alertas
+    ya enviadas, desde el último offset guardado, y actualiza el estado en
+    Upstash en consecuencia. No hay nada que enviar de vuelta a Telegram:
+    la propia reacción del usuario ya es la confirmación visible.
+
+    Se ejecuta de forma aislada: un fallo aquí no debe impedir que
+    `poll_once()` siga revisando Gmail con normalidad.
+    """
+    offset = state_service.get_telegram_update_offset()
+    updates = telegram_service.get_updates(offset)
+    if not updates:
+        return
+
+    max_update_id = offset - 1
+    for update in updates:
+        max_update_id = max(max_update_id, update.get("update_id", max_update_id))
+
+        reaction_update = update.get("message_reaction")
+        if not reaction_update:
+            continue
+
+        # El propio bot pone una reacción 👀 al enviar la alerta; eso genera
+        # su propio evento message_reaction, que hay que ignorar para no
+        # procesarlo como si fuera una respuesta del usuario.
+        reactor = reaction_update.get("user") or {}
+        if reactor.get("is_bot"):
+            continue
+
+        telegram_message_id = reaction_update.get("message_id")
+        new_emojis = {
+            r.get("emoji")
+            for r in reaction_update.get("new_reaction", []) or []
+            if r.get("type") == "emoji"
+        }
+        action = next((a for emoji, a in _REACTION_ACTIONS.items() if emoji in new_emojis), None)
+        if action is None:
+            continue
+
+        gmail_message_id = state_service.get_gmail_message_id_for_telegram(telegram_message_id)
+        if not gmail_message_id:
+            logger.warning(
+                "Reacción sobre un mensaje de Telegram no rastreado: %s", telegram_message_id
+            )
+            continue
+
+        doc = state_service.get_processed_message(gmail_message_id)
+        if not doc or doc.get("status") != "pending":
+            continue
+
+        mark_fn_name, status_label = action
+        getattr(state_service, mark_fn_name)(gmail_message_id)
+        telegram_service.set_reaction(telegram_message_id, None)
+        logger.info("Message %s marked as %s (reaction)", gmail_message_id, status_label)
+
+    state_service.save_telegram_update_offset(max_update_id + 1)
 
 
 def poll_once() -> None:
     """Revisa Gmail una vez: mensajes nuevos desde el último historyId."""
+    try:
+        process_telegram_reactions()
+    except Exception:
+        # Un fallo revisando reacciones no debe bloquear el polling de
+        # Gmail, que es la función principal del sistema.
+        logger.error("Fallo procesando reacciones de Telegram", exc_info=True)
+
     logger.info("Polling Gmail for new messages")
 
     service = gmail_service.build_gmail_client()

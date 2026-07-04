@@ -142,3 +142,25 @@ def test_html_to_text_strips_scripts():
 
 def test_build_gmail_link():
     assert build_gmail_link("abc123") == "https://mail.google.com/mail/u/0/#inbox/abc123"
+
+
+def test_parse_message_decodes_html_entities_in_snippet_and_subject():
+    message = {
+        "id": "msg7",
+        "threadId": "thread7",
+        "snippet": "Necesito que confirmes tu disponibilidad &quot;antes de las 18h&quot;",
+        "payload": {
+            "headers": _headers(
+                From="Oscar De Simone &lt;oscardsb22@gmail.com&gt;",
+                Subject="Entrevista &amp; confirmaci&#243;n urgente",
+            ),
+            "mimeType": "text/plain",
+            "body": {"data": _b64url("cuerpo")},
+        },
+    }
+
+    result = parse_message(message)
+
+    assert result["snippet"] == 'Necesito que confirmes tu disponibilidad "antes de las 18h"'
+    assert result["sender"] == "Oscar De Simone <oscardsb22@gmail.com>"
+    assert result["subject"] == "Entrevista & confirmación urgente"

@@ -44,7 +44,8 @@ No hay servidor que mantener encendido, ni watch() de Gmail que renovar: la sinc
 - **Idempotente**: reprocesar la misma ventana de correos nunca duplica una alerta. Si Gemini falla en un mensaje, no se marca como procesado y se reintenta automáticamente en el siguiente ciclo.
 - **Autocurativo**: si el `historyId` guardado caduca (Gmail solo guarda ~7 días de historial), el sistema se reinicializa solo desde el perfil actual, sin reprocesar toda la bandeja.
 - **Sin secretos en el código**: todo vive en GitHub Secrets, inyectado como variables de entorno en tiempo de ejecución.
-- **32 tests automatizados**: parser MIME, filtros, clasificador (con mocks, sin llamadas reales a APIs externas) y el cliente de estado.
+- **Triaje con reacciones nativas**: cada alerta lleva un botón "Abrir en Gmail" y el bot pone una reacción 👀 ("pendiente de revisar"). Reacciona tú mismo con 👍 (respondido) o 👎 (no importante) directamente sobre el mensaje — sin botones adicionales — y el sistema lo detecta en el siguiente ciclo y limpia la reacción del bot.
+- **72 tests automatizados**: parser MIME, filtros, clasificador, cliente de Telegram y estado (con mocks, sin llamadas reales a APIs externas).
 
 ## Stack
 
@@ -146,7 +147,7 @@ Repo privado → 2000 min/mes gratis de GitHub Actions (soporta hasta ~30 min de
 pytest tests/ -v
 ```
 
-32 tests, todos con mocks — no llaman a Gmail, Gemini, Telegram ni Upstash reales.
+72 tests, todos con mocks — no llaman a Gmail, Gemini, Telegram ni Upstash reales.
 
 ## Limitaciones conocidas
 

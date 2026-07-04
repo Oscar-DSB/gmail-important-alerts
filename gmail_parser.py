@@ -8,6 +8,7 @@ priorizando text/plain y recurriendo a HTML→texto con BeautifulSoup.
 from __future__ import annotations
 
 import base64
+import html as html_lib
 import logging
 from typing import Any
 
@@ -103,12 +104,16 @@ def parse_message(message: dict[str, Any]) -> dict[str, Any]:
     return {
         "message_id": message_id,
         "thread_id": message.get("threadId", ""),
-        "sender": headers.get("from", ""),
-        "recipient": headers.get("to", ""),
-        "subject": headers.get("subject", ""),
+        # Gmail devuelve a veces "from"/"subject"/"snippet" con entidades HTML
+        # sin decodificar (p. ej. &quot; en vez de "), incluso para mensajes
+        # sin relación con HTML. Se decodifican aquí para mostrar texto limpio
+        # tanto en Telegram como en el prompt enviado a Gemini.
+        "sender": html_lib.unescape(headers.get("from", "")),
+        "recipient": html_lib.unescape(headers.get("to", "")),
+        "subject": html_lib.unescape(headers.get("subject", "")),
         "date": headers.get("date", ""),
         "labels": list(message.get("labelIds", []) or []),
-        "snippet": message.get("snippet", "") or "",
+        "snippet": html_lib.unescape(message.get("snippet", "") or ""),
         "body_text": extract_body_text(payload),
         "gmail_link": build_gmail_link(message_id),
     }
