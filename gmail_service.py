@@ -55,17 +55,25 @@ def get_profile(service: Any) -> dict[str, Any]:
     return service.users().getProfile(userId="me").execute()
 
 
-def list_new_message_ids(service: Any, start_history_id: str) -> list[str]:
+def list_new_message_ids(service: Any, start_history_id: str) -> tuple[list[str], str]:
     """Recupera IDs de mensajes nuevos desde `start_history_id`, paginando.
 
     Elimina duplicados manteniendo el orden. Lanza HistoryIdTooOldError si
     Gmail responde 404 porque el historyId ya no es válido.
+
+    Devuelve también el `historyId` que Gmail reporta como "actual" en el
+    momento exacto de esta llamada (antes de procesar ningún mensaje), para
+    que el llamador pueda usarlo como nuevo checkpoint sin dejar una ventana
+    de carrera: si se pidiera un historyId "actual" después de procesar los
+    mensajes, un correo llegado durante el procesamiento quedaría por
+    delante del nuevo checkpoint y jamás se recuperaría.
     """
     from googleapiclient.errors import HttpError
 
     message_ids: list[str] = []
     seen: set[str] = set()
     page_token: str | None = None
+    latest_history_id = start_history_id
 
     while True:
         request_kwargs: dict[str, Any] = {
@@ -97,11 +105,14 @@ def list_new_message_ids(service: Any, start_history_id: str) -> list[str]:
                     seen.add(msg_id)
                     message_ids.append(msg_id)
 
+        if response.get("historyId"):
+            latest_history_id = str(response["historyId"])
+
         page_token = response.get("nextPageToken")
         if not page_token:
             break
 
-    return message_ids
+    return message_ids, latest_history_id
 
 
 def get_message(service: Any, message_id: str) -> dict[str, Any] | None:

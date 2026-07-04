@@ -91,7 +91,9 @@ def poll_once() -> None:
         return
 
     try:
-        message_ids = gmail_service.list_new_message_ids(service, last_history_id)
+        message_ids, latest_history_id = gmail_service.list_new_message_ids(
+            service, last_history_id
+        )
     except gmail_service.HistoryIdTooOldError:
         logger.error(
             "historyId %s demasiado antiguo; reinicializando estado de forma segura",
@@ -118,10 +120,10 @@ def poll_once() -> None:
         )
         return
 
-    # Solo avanzamos el historyId tras procesar todos los mensajes con éxito.
-    profile = gmail_service.get_profile(service)
-    current_history_id = str(profile.get("historyId", ""))
-    state_service.update_last_history_id(current_history_id)
+    # Avanzamos al historyId capturado ANTES de procesar (ver docstring de
+    # list_new_message_ids): así ningún correo llegado durante el
+    # procesamiento queda por delante del nuevo checkpoint.
+    state_service.update_last_history_id(latest_history_id)
 
 
 if __name__ == "__main__":
